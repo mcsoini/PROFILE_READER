@@ -1,10 +1,5 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""
-Created on Sun May 20 16:50:56 2018
-
-@author: user
-"""
 
 import sys, os
 import pandas as pd
