@@ -5,7 +5,7 @@ Created on Mon May 28 13:57:56 2018
 
 @author: user
 """
-import os
+import os, sys
 from importlib import reload
 
 import pandas as pd
@@ -26,7 +26,7 @@ import PROFILE_READER.config as conf
 
 os.chdir(os.path.dirname(os.path.realpath(__file__)))
 
-
+sys.exit()
 # %%
 #conf.
 
@@ -38,7 +38,6 @@ mps = maps.Maps(sc_maps, db)
 
 
 tm.build_timestamp_template(db, 'profiles_raw', 2005, 2020)
-
 
 
 kw_dict = dict(dict_sql=dict(db=db), base_dir=base_dir,
@@ -77,21 +76,23 @@ op.read_all(skip_sql=True)
 op.postprocessing_tot()
 
 
-kw_dict = dict(dict_sql=dict(db=db), col_filt=[], ext='xls')
+kw_dict = dict(dict_sql=dict(db=db), col_filt=[], ext='xls', base_dir=base_dir,)
 op = vlr.RTELoadReader(kw_dict)
 # note: due to conversion to UTC not there is some overlap between the years
 # therefore we cannot write directly
 op.read_all(skip_sql=True)
 op.postprocessing_tot()
 
+# %%
 
-kw_dict = dict(dict_sql=dict(db=db), col_filt=[], ext='xlsx')
+kw_dict = dict(dict_sql=dict(db=db), col_filt=[], ext='xlsx', base_dir=base_dir,)
 op = vlr.EControlLoadReader(kw_dict)
 op.read_all(skip_sql=True)
 op.postprocessing_tot()
 
 
-kw_dict = dict(dict_sql=dict(db=db), col_filt=[], ext='xls')
+
+kw_dict = dict(dict_sql=dict(db=db), col_filt=[], ext='xls', base_dir=base_dir,)
 op = vlr.SwissGridLoadReader(kw_dict)
 op.read_all(skip_sql=True)
 op.postprocessing_tot()
@@ -99,7 +100,7 @@ op.postprocessing_tot()
 
 
 reload(vlr)
-kw_dict = dict(dict_sql=dict(db=db))
+kw_dict = dict(dict_sql=dict(db=db), base_dir=base_dir)
 pya = vlr.ProfileYearAdder(kw_dict, tb='', filt=[])#, filt=[('nd_id', ['DE0'])])
 self = pya
 
@@ -124,14 +125,14 @@ for tb, filt in [('swissgrid_load', []),
 
 
 
-kw_dict = dict(dict_sql=dict(db='storage2'),
+kw_dict = dict(dict_sql=dict(db='storage2'), base_dir=base_dir,
                exclude_substrings=[],
                tm_filt={'year': range(2005, 2018)},
                ext=['csv'])
 op = dgp.QuandlCoalPriceReader(kw_dict)
 op.read_all()
 
-kw_dict = dict(dict_sql=dict(db='storage2'),
+kw_dict = dict(dict_sql=dict(db='storage2'), base_dir=base_dir,
                exclude_substrings=[],
                tm_filt={'year': range(2005, 2018)},
                ext=['xlsx'])
@@ -141,7 +142,7 @@ op.read_all()
 
 
 
-kw_dict = dict(dict_sql=dict(db=db),
+kw_dict = dict(dict_sql=dict(db=db), base_dir=base_dir,
                tm_filt={'year': range(2005, 2018)},
                col_filt=[], ext='csv', exclude_substrings=[])
 op = pr.EpexPriceVolume(kw_dict)
@@ -155,7 +156,7 @@ op.read_all()
 #op = pr.RTEProduction(kw_dict)
 #op.get_fn_list()
 #op.read_all()
-kw_dict = dict(dict_sql=dict(db=db),
+kw_dict = dict(dict_sql=dict(db=db), base_dir=base_dir,
                tm_filt={'year': [2015, 2014, 2016]},
                col_filt=[], ext=['xlsx'], exclude_substrings=['Real'])
 
@@ -170,14 +171,14 @@ op.read_all(skip_sql=True)
 op.post_processing()
 
 
-kw_dict = dict(dict_sql=dict(db=db),
+kw_dict = dict(dict_sql=dict(db=db), base_dir=base_dir,
            tm_filt={'year': range(2005, 2018)},
            col_filt=[])
 op = pr.EntsoeGenerationReader(kw_dict)
 op.get_fn_list()
 op.read_all()
 
-kw_dict = dict(dict_sql=dict(db=db),
+kw_dict = dict(dict_sql=dict(db=db), base_dir=base_dir,
                tm_filt={'year': range(2005, 2018)},
                col_filt=[],
                exclude_substrings=['filtered', '30', '60'])
@@ -187,7 +188,7 @@ op.df_tot = op.get_hour_of_the_year(op.df_tot)
 op.append_to_sql(op.df_tot)
 
 
-kw_dict = dict(dict_sql=dict(db='storage2'),
+kw_dict = dict(dict_sql=dict(db='storage2'), base_dir=base_dir,
                exclude_substrings=[],
                tm_filt={'year': range(2015, 2018)},
                ext=['csv'])
@@ -197,7 +198,7 @@ op.read_all()
 
 
 
-kw_dict = dict(dict_sql=dict(db='storage2'),
+kw_dict = dict(dict_sql=dict(db='storage2'), base_dir=base_dir,
                tm_filt={'year': range(2005, 2018)},
                col_filt=[], ext='svg', exclude_substrings=['ch_2'])
 
@@ -206,7 +207,7 @@ op.get_fn_list()
 op.read_all(skip_sql=True)
 op.postprocessing_tot()
 
-kw_dict = dict(dict_sql=dict(db=db),
+kw_dict = dict(dict_sql=dict(db=db), base_dir=base_dir,
                exclude_substrings=[],
                tm_filt={'year': range(2005, 2018)},
                ext=['xlsx'])
@@ -219,7 +220,7 @@ op.read_all()
 
 
 dict_sql = dict(db=db)
-kw_dict = dict(exclude_substrings=['near', 'long', 'future'],
+kw_dict = dict(exclude_substrings=['near', 'long', 'future'], base_dir=base_dir,
                dict_sql=dict_sql, tm_filt={'year': range(2005, 2018)},
                col_filt=[('pt_id', ['WIN_TOT'], False)])
 nr = pr.NinjaReader(kw_dict)
