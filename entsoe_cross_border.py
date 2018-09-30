@@ -9,11 +9,18 @@ import urllib.request
 from tqdm import tqdm
 import numpy as np
 
-import grimsel_h.auxiliary.timemap as timemap
-import grimsel_h.auxiliary.aux_sql_func as aql
+import grimsel.auxiliary.timemap as timemap
+import grimsel.auxiliary.aux_sql_func as aql
 
 import PROFILE_READER.profile_reader as profile_reader
 
+import PROFILE_READER.config as conf
+
+os.chdir(os.path.dirname(os.path.realpath(__file__)))
+
+BASE_DIR = conf.BASE_DIR
+
+# %%
 reload(profile_reader)
 
 
@@ -185,7 +192,9 @@ class EntsoeCommercialExchangeReader(profile_reader.ProfileReader):
         
     def post_processing(self):
 
-        self.get_hour_of_the_year(self.df_tot)
+        self.df_tot = self.df_tot.rename(columns={'Capacity': 'value'})
+        
+        self.df_tot = self.get_hour_of_the_year(self.df_tot)
         
         self.append_to_sql(self.df_tot.copy())
         
@@ -194,7 +203,7 @@ if __name__ == '__main__':
 
     dict_sql = dict(db='storage2')
 
-    kw_dict = dict(dict_sql=dict_sql,
+    kw_dict = dict(dict_sql=dict_sql, base_dir=BASE_DIR,
                    exclude_substrings=[],
                    col_filt=[],
                    ext=['xlsx'])
@@ -207,6 +216,11 @@ if __name__ == '__main__':
 
     self.read_all(skip_sql=True)
 
+# %%
+
+self.df_tot.pivot_table(values='hy', index=['nd_to', 'nd_from'], aggfunc=[max, min])
+
+self.df_tot.loc[self.df_tot.nd_to.isin(['IT0'])].pivot_table(index='hy', columns='nd_from', values='value', aggfunc=sum).plot.area()
 
 # %%
 
