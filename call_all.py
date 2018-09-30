@@ -20,21 +20,23 @@ import PROFILE_READER.sketch_agora as ag
 import PROFILE_READER.hydro_level as hy
 import PROFILE_READER.timemap as tm
 import PROFILE_READER.monthly_production as mp
+import PROFILE_READER.entsoe_cross_border as xb
 
 import PROFILE_READER.config as conf
 
-
 os.chdir(os.path.dirname(os.path.realpath(__file__)))
-
-sys.exit()
-# %%
-#conf.
 
 base_dir = conf.BASE_DIR
 
 sc_maps = 'lp_input_calibration_years_linonly'
 db = 'storage2'
 mps = maps.Maps(sc_maps, db)
+
+
+sys.exit()
+# %%
+#conf.
+
 
 
 tm.build_timestamp_template(db, 'profiles_raw', 2005, 2020)
@@ -69,6 +71,15 @@ op.read_all()
 
 
 
+kw_dict = dict(dict_sql=dict(db='storage2'), base_dir=base_dir,
+               exclude_substrings=[],
+               col_filt=[],
+               ext=['xlsx'])
+op = xb.EntsoeCommercialExchangeReader(kw_dict)
+op.read_all(skip_sql=True)
+
+
+
 kw_dict = dict(dict_sql=dict(db=db), exclude_substrings=[], base_dir=base_dir,
                col_filt=[], ext=['htm', 'html'])
 op = vlr.TernaProfileReader(kw_dict)
@@ -83,7 +94,8 @@ op = vlr.RTELoadReader(kw_dict)
 op.read_all(skip_sql=True)
 op.postprocessing_tot()
 
-# %%
+
+
 
 kw_dict = dict(dict_sql=dict(db=db), col_filt=[], ext='xlsx', base_dir=base_dir,)
 op = vlr.EControlLoadReader(kw_dict)
@@ -207,16 +219,18 @@ op.get_fn_list()
 op.read_all(skip_sql=True)
 op.postprocessing_tot()
 
+
+
 kw_dict = dict(dict_sql=dict(db=db), base_dir=base_dir,
                exclude_substrings=[],
                tm_filt={'year': range(2005, 2018)},
                ext=['xlsx'])
-
-
 op = mp.MonthlyProductionReader(kw_dict)
 self = op
 fn = self.fn_list[0]
 op.read_all()
+
+
 
 
 dict_sql = dict(db=db)
