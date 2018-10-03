@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import datetime
 import grimsel.auxiliary.timemap as timemap
-from profile_reader import ProfileReader
+from PROFILE_READER.profile_reader import ProfileReader
 
 svg_file = "/mnt/data/Dropbox/SHARED_DATA/AGORA_SVGS"
 

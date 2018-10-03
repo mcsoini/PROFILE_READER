@@ -24,6 +24,7 @@ import PROFILE_READER.entsoe_cross_border as xb
 
 import PROFILE_READER.config as conf
 
+# make sure we are in the right folder if the BASE_DIR is specified as relative path
 os.chdir(os.path.dirname(os.path.realpath(__file__)))
 
 base_dir = conf.BASE_DIR
@@ -71,12 +72,23 @@ op.read_all()
 
 
 
-kw_dict = dict(dict_sql=dict(db='storage2'), base_dir=base_dir,
+kw_dict = dict(dict_sql=dict(db=db), base_dir=base_dir,
                exclude_substrings=[],
                col_filt=[],
                ext=['xlsx'])
 op = xb.EntsoeCommercialExchangeReader(kw_dict)
 op.read_all(skip_sql=True)
+op.post_processing()
+
+
+
+
+kw_dict = dict(dict_sql=dict(db=db),
+               exclude_substrings=[],
+               col_filt=[],
+               ext=['csv'])
+op = xb.EntsoeCrossBorderReader(kw_dict)
+
 
 
 
@@ -85,6 +97,8 @@ kw_dict = dict(dict_sql=dict(db=db), exclude_substrings=[], base_dir=base_dir,
 op = vlr.TernaProfileReader(kw_dict)
 op.read_all(skip_sql=True)
 op.postprocessing_tot()
+
+
 
 
 kw_dict = dict(dict_sql=dict(db=db), col_filt=[], ext='xls', base_dir=base_dir,)
@@ -137,14 +151,14 @@ for tb, filt in [('swissgrid_load', []),
 
 
 
-kw_dict = dict(dict_sql=dict(db='storage2'), base_dir=base_dir,
+kw_dict = dict(dict_sql=dict(db=db), base_dir=base_dir,
                exclude_substrings=[],
                tm_filt={'year': range(2005, 2018)},
                ext=['csv'])
 op = dgp.QuandlCoalPriceReader(kw_dict)
 op.read_all()
 
-kw_dict = dict(dict_sql=dict(db='storage2'), base_dir=base_dir,
+kw_dict = dict(dict_sql=dict(db=db), base_dir=base_dir,
                exclude_substrings=[],
                tm_filt={'year': range(2005, 2018)},
                ext=['xlsx'])
@@ -200,7 +214,7 @@ op.df_tot = op.get_hour_of_the_year(op.df_tot)
 op.append_to_sql(op.df_tot)
 
 
-kw_dict = dict(dict_sql=dict(db='storage2'), base_dir=base_dir,
+kw_dict = dict(dict_sql=dict(db=db), base_dir=base_dir,
                exclude_substrings=[],
                tm_filt={'year': range(2015, 2018)},
                ext=['csv'])
@@ -210,7 +224,7 @@ op.read_all()
 
 
 
-kw_dict = dict(dict_sql=dict(db='storage2'), base_dir=base_dir,
+kw_dict = dict(dict_sql=dict(db=db), base_dir=base_dir,
                tm_filt={'year': range(2005, 2018)},
                col_filt=[], ext='svg', exclude_substrings=['ch_2'])
 

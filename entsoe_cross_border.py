@@ -306,11 +306,4 @@ if __name__ == '__main__':
 #    self.df_tot.loc[self.df_tot.nd_id == 'DE0'].pivot_table(values='value', index='hy', columns=['nd_id', 'year']).plot()
 
 # %%
-
-slct_nd = ['CH0', 'AT0']    
-    
-self.df_tot.loc[self.df_tot.nd_to.isin(slct_nd)
-              & self.df_tot.nd_from.isin(slct_nd)
-              ]    
-    
     
