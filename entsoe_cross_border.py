@@ -180,15 +180,13 @@ class EntsoeCommercialExchangeReader(profile_reader.ProfileReader):
 
     def get_fn_list(self):
         ''' Remove double files (nd1, nd2) = (nd2, nd1) '''
-        
-        
+
         super().get_fn_list()
         
         df_fn = pd.DataFrame(self.fn_list, columns=['fn'])
         df_fn[['nd_1', 'nd_2']] = df_fn.fn.apply(lambda x: tuple(sorted(x.split(os.sep)[-1].split('_')[:2]))).apply(pd.Series)
         df_fn = df_fn.groupby(['nd_1', 'nd_2']).apply(lambda x: x.iloc[0, 0])
         self.fn_list = df_fn.values
-       
         
     def post_processing(self):
 
@@ -198,7 +196,6 @@ class EntsoeCommercialExchangeReader(profile_reader.ProfileReader):
         
         self.append_to_sql(self.df_tot.copy())
         
-
 if __name__ == '__main__':
 
     dict_sql = dict(db='storage2')
@@ -216,11 +213,7 @@ if __name__ == '__main__':
 
     self.read_all(skip_sql=True)
 
-# %%
 
-self.df_tot.pivot_table(values='hy', index=['nd_to', 'nd_from'], aggfunc=[max, min])
-
-self.df_tot.loc[self.df_tot.nd_to.isin(['IT0'])].pivot_table(index='hy', columns='nd_from', values='value', aggfunc=sum).plot.area()
 
 # %%
 
