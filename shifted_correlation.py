@@ -1,9 +1,13 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Tue May 22 13:16:37 2018
+Simple script to compare the time-shifted cross-correlation
+of two time series by month. This is used to check the UTC
+time zone definition of PV profiles by comparing them to a
+reference.
 
-@author: user
+Adjust the PSQL query to obtain an appropriate input
+DataFrame dfcomp.
 """
 
 
