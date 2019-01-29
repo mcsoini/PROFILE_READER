@@ -13,11 +13,11 @@ DataFrame dfcomp.
 
 import matplotlib.pyplot as plt
 
-import grimsel_h.auxiliary.aux_sql_func as aql
+import grimsel.auxiliary.sqlutils.aux_sql_func as aql
 import pandas as pd
 import numpy as np
 
-import grimsel_h.auxiliary.timemap as timemap
+import grimsel.auxiliary.timemap as timemap
 #
 #dfcomp = pd.DataFrame(aql.exec_sql('''
 #             SELECT * FROM profiles_raw.rte_load
