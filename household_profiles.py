@@ -123,7 +123,14 @@ class CREMProfileReader(ProfileReader):
         df['nd_id'] = hashlib.md5(str((obj, place)).encode('utf-8')).hexdigest()[:10].upper()
         df['missing_incl_tz'] = sum(df.erg_tot.isna()) / len(df.erg_tot)
     
+        df['hour'] = df.DateTime.dt.hour
+        max_per_hour = df.set_index('DateTime').pivot_table(index=pd.Grouper(freq='d'), columns='hour', aggfunc=len).max().max()
     
+        if max_per_hour > 4:
+            print('Maximum values per value is greater 4... skipping.')
+            df = None
+        else:
+            df.drop('hour', axis=1, inplace=True)
         
         return df
 
@@ -205,6 +212,7 @@ class SwissLocationSolarReader(ProfileReader):
 
         df = self.get_hour_of_the_year(df)
    
+    
         self.append_to_sql(df)
      
 
