@@ -10,7 +10,7 @@ import numpy as np
 import pandas as pd
 import itertools
 import re
-import grimsel.auxiliary.aux_sql_func as aql
+import grimsel.auxiliary.sqlutils.aux_sql_func as aql
 import grimsel.auxiliary.maps as maps
 import grimsel.auxiliary.timemap as timemap
 from xlrd import open_workbook
@@ -120,11 +120,6 @@ class ProfileReader():
         if not 'year' in df.columns:
             df['year'] = df.DateTime.dt.year
 
-        list_ind = [c for c in df.columns if not ('DateTime' in c or
-                                                  'value' in c or 'hy' in c)]
-
-
-
         tm = timemap.TimeMap(keep_datetime=True)
         tm.gen_hoy_timemap(start=df.DateTime.min(),
                            stop=df.DateTime.max())
@@ -139,43 +134,7 @@ class ProfileReader():
         df = pd.merge(tm.df_time_map[['DateTime', 'hy']],
                       df, on=['DateTime'])
 
-#
-#        df.pivot_table(index=)
-#
-#
-#        df = df.set_index(list_ind)
-#
-#        double_reset = lambda x: (x.reset_index(drop=True)
-#                                   .reset_index()['index'])
-#
-#        def get_hy(x):
-#
-#            x = x.sort_values('DateTime')
-#            x = x.reset_index(drop=True)
-#            x = x.reset_index()['index']
-#            return x
-#
-#
-#        d
-#
-#        dfg = df.groupby(level=df.index.names)[['DateTime', 'value']]
-#
-#        x = dfg.get_group(('transnetbw', 'DE_WIN_TOT', 'actual', 2014))
-#
-#
-#        df['hy'] = dfg.apply(get_hy)
-
-#        df = df.reset_index()
-
         return df
-
-#df.loc[(df.tso == 'transnetbw')
-#              & (df.DateTime.dt.date == datetime.date(2014,4,4))
-#              & (df.pp_id == 'DE_WIN_TOT')
-#              ]
-#
-#df.pivot_table(index=['year', 'val_type'], columns=['pp_id'], values='hy', aggfunc=np.max)
-
 
     def single_post_processing(self, df_add):
         df_add = self.filter_tm(df_add)
