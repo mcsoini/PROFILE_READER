@@ -10,7 +10,7 @@ import numpy as np
 import pandas as pd
 import itertools
 import re
-import grimsel.auxiliary.aux_sql_func as aql
+import grimsel.auxiliary.sqlutils.aux_sql_func as aql
 import grimsel.auxiliary.maps as maps
 import grimsel.auxiliary.timemap as timemap
 from xlrd import open_workbook
