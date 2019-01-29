@@ -29,7 +29,7 @@ os.chdir(os.path.dirname(os.path.realpath(__file__)))
 
 base_dir = conf.BASE_DIR
 
-sc_maps = 'lp_input_calibration_years_linonly'
+sc_maps = 'lp_input_replace'
 db = 'storage2'
 mps = maps.Maps(sc_maps, db)
 
@@ -258,86 +258,144 @@ nr.read_all()
 nr.make_pp_id_col()
 nr.merge_location_profiles_sql()
 
+# %%
 
-# add 2017
-dict_cap_compl = {
-                  ('IT0', 'WIN_ONS', 2017): 9383.933906 + 359.2, # +359.2 MW http://www.qualenergia.it/articoli/20180213-eolico-i-dati-2017-sull-installato-italia-europa-e-nel-mondo-
-                  ('IT0', 'SOL_PHO', 2017): 19283.173 + 409, # + 409 http://www.solareb2b.it/nel-2017-italia-installati-409-mw-nuovi-impianti-fv-11/
-                  ('CH0', 'SOL_PHO', 2017): 1660.21 + 260, # +260 MW https://www.energie-cluster.ch/admin/data/files/file/file/2090/180112_mm_markt17.pdf?lm=1516007459
-                  ('CH0', 'WIN_ONS', 2017): 74.9, # no change http://www.suisse-eole.ch/de/windenergie/statistik/
-                  ('FR0', 'SOL_PHO', 2017): 7647, # https://www.rte-france.com/sites/default/files/panorama-31mars18.pdf
-                  ('FR0', 'WIN_ONS', 2017): 13539, # https://www.rte-france.com/sites/default/files/panorama-31mars18.pdf
-                  ('AT0', 'SOL_PHO', 2017): 1089.529000 + 153, # http://www.iea-pvps.org/fileadmin/dam/public/report/statistics/IEA-PVPS_-_A_Snapshot_of_Global_PV_-_1992-2017.pdf
-                 }
+from scipy.stats import norm
+import matplotlib.pyplot as plt
+import numpy as np
 
-cols = ['pp_id'] + [c for c in aql.get_sql_cols('plant_encar', sc_maps, db).keys()
-                    if 'cap_pwr_leg' in c]
-dfcap = aql.read_sql(db, sc_maps, 'plant_encar')[cols]
-dfcap = dfcap.rename(columns={'cap_pwr_leg': 'cap_pwr_leg_yr2015'})
-dfcap['pp_id'].replace(mps.dict_pp, inplace=True)
-dfcap = dfcap.loc[dfcap.pp_id.str.contains('WIN|SOL')]
-dfcap['nd_id'] = dfcap['pp_id'].apply(lambda x: x[:2] + '0')
-dfcap['pt_id'] = dfcap['pp_id'].apply(lambda x: x[3:])
+# adjust capacity factor of all ninja  profiles to match the long-term average
+df_nnj = aql.read_sql(db, 'profiles_raw', 'ninja', filt=[('proftype', ['national'])],
+             keep=['pp_id', 'value', 'hy', 'year', 'pt_id', 'nd_id'])
 
-# add missing values 2017:
-dfcap = dfcap.set_index(['nd_id', 'pt_id'])
-for kk, vv in dict_cap_compl.items():
-    print(kk, vv)
-    dfcap.loc[kk[:2], 'cap_pwr_leg_yr2017'] = vv
+sum_cf = df_nnj.pivot_table(index=['pp_id', 'year'], values='value', aggfunc=np.sum)['value'].reset_index()
+dict_tgt = sum_cf.pivot_table(index=['pp_id'], values='value', aggfunc=np.mean)['value'].to_dict()
 
-dfcap = dfcap.reset_index()
-dfcap = dfcap.drop('pp_id', axis=1).set_index(['nd_id', 'pt_id']).stack().reset_index().rename(columns={'level_2': 'year', 0: 'cap_end'})
-dfcap['year'] = dfcap['year'].apply(lambda x: int(x[-4:]))
-dfcap = dfcap.sort_values(['nd_id', 'pt_id', 'year'])
-dfcap['cap_beg'] = dfcap.groupby(['nd_id', 'pt_id'])['cap_end'].transform(lambda x: x.shift().fillna(method='bfill'))
-dfcap['scale_beg'] = dfcap['cap_beg'] / dfcap['cap_end']
-dfcap['scale_end'] = 1
-dfcap.loc[dfcap.scale_beg == float('inf'), 'scale_beg'] = 1
-
-aql.write_sql(dfcap, db, 'public', 'temp_add_column', 'replace')
-
-exec_str = '''
-           ALTER TABLE profiles_raw.ninja
-           ADD COLUMN IF NOT EXISTS scale DOUBLE PRECISION,
-           ADD COLUMN IF NOT EXISTS value_sc DOUBLE PRECISION;
-
-           UPDATE profiles_raw.ninja AS tbnn
-           SET scale = COALESCE((tbsc.scale_end - tbsc.scale_beg) / (8760 - 1) * hy + tbsc.scale_beg, 1)
-           FROM temp_add_column AS tbsc
-           WHERE tbnn.year = tbsc.year
-               AND tbnn.pt_id = tbsc.pt_id
-               AND tbnn.nd_id = tbsc.nd_id;
-
-           UPDATE profiles_raw.ninja
-           SET value_sc = scale * value;
-           '''
-aql.exec_sql(exec_str, db=dict_sql['db'])
-
-aql.read_sql(dict_sql['db'], 'profiles_raw', 'ninja', filt=[('year', [2016])])
+dfg = df_nnj.groupby(['pp_id', 'year'], as_index=False)
+name = ('DE_WIN_OFF', 2016)
+x = dfg.get_group(name)
+x.name = name
 
 
-filt=[('pt_id', ['WIN_OFF']), ('nd_id', ['DE0']), ('year', [2015])]
-df = aql.read_sql(db, 'profiles_raw', 'ninja', filt=filt)
-dfcap = aql.read_sql(db, 'public', 'temp_add_column', filt=filt)
+def adjust_cf(x):
 
-exec_strg = '''
-            SELECT pt_id, proftype, year, nd_id, location, AVG(value_sc), AVG(value)
-            FROM profiles_raw.ninja
-            GROUP BY pt_id, proftype, year, nd_id, location
-            '''
-cfnn = pd.DataFrame(aql.exec_sql(exec_strg, db=db),
-             columns=['pt_id', 'proftype', 'year', 'nd_id', 'location', 'cfsc', 'cf'])
+    print(x.name)
+    tgt = dict_tgt[x.name[0]]
+    cf = x.value.sum()
 
-cols = ['pp_id'] + [c for c in aql.get_sql_cols('plant_encar', sc_maps, db).keys()
-                    if 'cf_max' in c]
-dfcf = aql.read_sql(db, sc_maps, 'plant_encar')[cols]
-dfcf = dfcf.rename(columns={'cf_max': 'cf_max_yr2015'})
-dfcf['pp_id'].replace(mps.dict_pp, inplace=True)
-dfcf = dfcf.loc[dfcf.pp_id.str.contains('WIN|SOL')]
-dfcf['nd_id'] = dfcf['pp_id'].apply(lambda x: x[:2] + '0')
-dfcf['pt_id'] = dfcf['pp_id'].apply(lambda x: x[3:])
-dfcf = dfcf.drop('pp_id', axis=1).set_index(['nd_id', 'pt_id']).stack().reset_index().rename(columns={'level_2': 'year', 0: 'cfmax'})
-dfcf['year'] = dfcf['year'].apply(lambda x: int(x[-4:]))
-dfcf = dfcf.set_index(['nd_id', 'pt_id', 'year'])
+    diff = (tgt - cf)
 
-cfnn = cfnn.join(dfcf, on=dfcf.index.names)
+    gauss = np.zeros(len(x))
+
+    def getgauss(area):
+        gauss_new = norm.pdf(np.linspace(0, 8759, 8760),
+                         np.random.randint(1000, 8000), 200)
+        return gauss_new * area
+
+    while abs(gauss).sum() < abs(diff):
+        gauss_add = getgauss(diff * 2)
+        scale_value = (gauss_add * x.value * (1 - x.value)) / (x.value * gauss_add * (1 - x.value)).sum()
+        gauss += gauss_add * scale_value
+        mask = (x.value + gauss) < 0
+        gauss[mask] = 0
+
+    gauss += getgauss(diff - gauss.sum())
+    gauss[gauss + x.value < 0] = 0
+
+    x['gauss'] = gauss
+
+    x['value_mod'] = x.value + x.gauss
+
+    return x
+df_nnj_mod = dfg.apply(adjust_cf)
+# reduce numerical accuracy
+df_nnj_mod['value_mod'] = df_nnj_mod.value_mod.apply(lambda x: int(1e8 * x) / 1e8)
+
+df_nnj_mod = df_nnj_mod.drop('gauss', axis=1)
+df_nnj_mod = df_nnj_mod.reset_index(drop=True)
+
+aql.write_sql(df_nnj_mod, db, 'profiles_raw', 'ninja_mod', 'replace', 10000)
+
+#
+## add 2017
+#dict_cap_compl = {
+#                  ('IT0', 'WIN_ONS', 2017): 9383.933906 + 359.2, # +359.2 MW http://www.qualenergia.it/articoli/20180213-eolico-i-dati-2017-sull-installato-italia-europa-e-nel-mondo-
+#                  ('IT0', 'SOL_PHO', 2017): 19283.173 + 409, # + 409 http://www.solareb2b.it/nel-2017-italia-installati-409-mw-nuovi-impianti-fv-11/
+#                  ('CH0', 'SOL_PHO', 2017): 1660.21 + 260, # +260 MW https://www.energie-cluster.ch/admin/data/files/file/file/2090/180112_mm_markt17.pdf?lm=1516007459
+#                  ('CH0', 'WIN_ONS', 2017): 74.9, # no change http://www.suisse-eole.ch/de/windenergie/statistik/
+#                  ('FR0', 'SOL_PHO', 2017): 7647, # https://www.rte-france.com/sites/default/files/panorama-31mars18.pdf
+#                  ('FR0', 'WIN_ONS', 2017): 13539, # https://www.rte-france.com/sites/default/files/panorama-31mars18.pdf
+#                  ('AT0', 'SOL_PHO', 2017): 1089.529000 + 153, # http://www.iea-pvps.org/fileadmin/dam/public/report/statistics/IEA-PVPS_-_A_Snapshot_of_Global_PV_-_1992-2017.pdf
+#                 }
+#
+#cols = ['pp_id'] + [c for c in aql.get_sql_cols('plant_encar', sc_maps, db).keys()
+#                    if 'cap_pwr_leg' in c]
+#dfcap = aql.read_sql(db, sc_maps, 'plant_encar')[cols]
+#dfcap = dfcap.rename(columns={'cap_pwr_leg': 'cap_pwr_leg_yr2015'})
+#dfcap['pp_id'].replace(mps.dict_pp, inplace=True)
+#dfcap = dfcap.loc[dfcap.pp_id.str.contains('WIN|SOL')]
+#dfcap['nd_id'] = dfcap['pp_id'].apply(lambda x: x[:2] + '0')
+#dfcap['pt_id'] = dfcap['pp_id'].apply(lambda x: x[3:])
+#
+## add missing values 2017:
+#dfcap = dfcap.set_index(['nd_id', 'pt_id'])
+#for kk, vv in dict_cap_compl.items():
+#    print(kk, vv)
+#    dfcap.loc[kk[:2], 'cap_pwr_leg_yr2017'] = vv
+#
+#dfcap = dfcap.reset_index()
+#dfcap = dfcap.drop('pp_id', axis=1).set_index(['nd_id', 'pt_id']).stack().reset_index().rename(columns={'level_2': 'year', 0: 'cap_end'})
+#dfcap['year'] = dfcap['year'].apply(lambda x: int(x[-4:]))
+#dfcap = dfcap.sort_values(['nd_id', 'pt_id', 'year'])
+#dfcap['cap_beg'] = dfcap.groupby(['nd_id', 'pt_id'])['cap_end'].transform(lambda x: x.shift().fillna(method='bfill'))
+#dfcap['scale_beg'] = dfcap['cap_beg'] / dfcap['cap_end']
+#dfcap['scale_end'] = 1
+#dfcap.loc[dfcap.scale_beg == float('inf'), 'scale_beg'] = 1
+#
+#aql.write_sql(dfcap, db, 'public', 'temp_add_column', 'replace')
+#
+#exec_str = '''
+#           ALTER TABLE profiles_raw.ninja
+#           ADD COLUMN IF NOT EXISTS scale DOUBLE PRECISION,
+#           ADD COLUMN IF NOT EXISTS value_sc DOUBLE PRECISION;
+#
+#           UPDATE profiles_raw.ninja AS tbnn
+#           SET scale = COALESCE((tbsc.scale_end - tbsc.scale_beg) / (8760 - 1) * hy + tbsc.scale_beg, 1)
+#           FROM temp_add_column AS tbsc
+#           WHERE tbnn.year = tbsc.year
+#               AND tbnn.pt_id = tbsc.pt_id
+#               AND tbnn.nd_id = tbsc.nd_id;
+#
+#           UPDATE profiles_raw.ninja
+#           SET value_sc = scale * value;
+#           '''
+#aql.exec_sql(exec_str, db=dict_sql['db'])
+#
+#aql.read_sql(dict_sql['db'], 'profiles_raw', 'ninja', filt=[('year', [2016])])
+#
+#
+#filt=[('pt_id', ['WIN_OFF']), ('nd_id', ['DE0']), ('year', [2015])]
+#df = aql.read_sql(db, 'profiles_raw', 'ninja', filt=filt)
+#dfcap = aql.read_sql(db, 'public', 'temp_add_column', filt=filt)
+#
+#exec_strg = '''
+#            SELECT pt_id, proftype, year, nd_id, location, AVG(value_sc), AVG(value)
+#            FROM profiles_raw.ninja
+#            GROUP BY pt_id, proftype, year, nd_id, location
+#            '''
+#cfnn = pd.DataFrame(aql.exec_sql(exec_strg, db=db),
+#             columns=['pt_id', 'proftype', 'year', 'nd_id', 'location', 'cfsc', 'cf'])
+#
+#cols = ['pp_id'] + [c for c in aql.get_sql_cols('plant_encar', sc_maps, db).keys()
+#                    if 'cf_max' in c]
+#dfcf = aql.read_sql(db, sc_maps, 'plant_encar')[cols]
+#dfcf = dfcf.rename(columns={'cf_max': 'cf_max_yr2015'})
+#dfcf['pp_id'].replace(mps.dict_pp, inplace=True)
+#dfcf = dfcf.loc[dfcf.pp_id.str.contains('WIN|SOL')]
+#dfcf['nd_id'] = dfcf['pp_id'].apply(lambda x: x[:2] + '0')
+#dfcf['pt_id'] = dfcf['pp_id'].apply(lambda x: x[3:])
+#dfcf = dfcf.drop('pp_id', axis=1).set_index(['nd_id', 'pt_id']).stack().reset_index().rename(columns={'level_2': 'year', 0: 'cfmax'})
+#dfcf['year'] = dfcf['year'].apply(lambda x: int(x[-4:]))
+#dfcf = dfcf.set_index(['nd_id', 'pt_id', 'year'])
+#
+#cfnn = cfnn.join(dfcf, on=dfcf.index.names)
