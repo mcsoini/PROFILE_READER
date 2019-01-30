@@ -120,18 +120,20 @@ class ProfileReader():
         if not 'year' in df.columns:
             df['year'] = df.DateTime.dt.year
 
-        tm = timemap.TimeMap(keep_datetime=True)
-        tm.gen_hoy_timemap(start=df.DateTime.min(),
-                           stop=df.DateTime.max())
+        if not hasattr(self, 'tm'):
+
+            self.tm = timemap.TimeMap(keep_datetime=True)
+            self.tm.gen_hoy_timemap(start=df.DateTime.min(),
+                                    stop=df.DateTime.max())
 
         # explicitly reset UTC
-        tm.df_time_map['DateTime'] = (tm.df_time_map.DateTime
-                                        .dt.tz_convert('UTC'))
+        self.tm.df_time_map['DateTime'] = (self.tm.df_time_map.DateTime
+                                                  .dt.tz_convert('UTC'))
 
         # explicitly make datetime
         df['DateTime'] = pd.to_datetime(df.DateTime)
 
-        df = pd.merge(tm.df_time_map[['DateTime', 'hy']],
+        df = pd.merge(self.tm.df_time_map[['DateTime', 'hy']],
                       df, on=['DateTime'])
 
         return df
