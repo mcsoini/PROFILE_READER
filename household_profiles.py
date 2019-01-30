@@ -39,7 +39,7 @@ class CREMProfileReader(ProfileReader):
                ('erg_tot_filled', 'DOUBLE PRECISION'),
                ('hy', 'SMALLINT'),
                ('missing_incl_tz', 'FLOAT')]
-    tb_pk = ['nd_id', 'hy']
+    tb_pk = []
 
     def __init__(self, kw_dict):
         super().__init__(**kw_dict)
@@ -151,9 +151,20 @@ if __name__ == '__main__':
 
     fn = self.fn_list[0]
 
-#    sys.exit()
 
-#    op.read_all()
+
+    sys.exit()
+
+    op.read_all()
+
+        
+    exec_strg = '''
+                ALTER TABLE {sc}.{tb}
+                ADD PRIMARY KEY (nd_id, hy);
+                '''.format(**self.dict_sql)
+    aql.exec_sql(exec_strg, db=self.dict_sql['db'])
+                
+
 
 #    self.append_to_sql(self.df_tot)
 
