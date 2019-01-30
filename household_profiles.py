@@ -31,7 +31,7 @@ base_dir = conf.BASE_DIR
 class CREMProfileReader(ProfileReader):
     ''' '''
 
-    dict_sql_default = dict(sc='profiles_raw', tb='households_crem')
+    dict_sql_default = dict(sc='profiles_raw', tb='households_crem_h')
     data_dir = os.path.normpath('HOUSEHOLD_PROFILES_CREM\\RAW_DATA')
 
     tb_cols = [('nd_id', 'VARCHAR'),
