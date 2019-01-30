@@ -35,7 +35,7 @@ class CREMProfileReader(ProfileReader):
     data_dir = os.path.normpath('HOUSEHOLD_PROFILES_CREM\\RAW_DATA')
 
     tb_cols = [('nd_id', 'VARCHAR'),
-               ('erg_tot', 'DOUBLE PRECISION'),
+#               ('erg_tot', 'DOUBLE PRECISION'),
                ('erg_tot_filled', 'DOUBLE PRECISION'),
                ('hy', 'SMALLINT'),
                ('missing_incl_tz', 'FLOAT')]
@@ -120,9 +120,8 @@ class CREMProfileReader(ProfileReader):
         
         df = df.join(dfpv, on=['how', 'week'])
 
-        df['nd_id'] = hashlib.md5(str((obj, place)).encode('utf-8')).hexdigest()[:10].upper()
-        df['missing_incl_tz'] = sum(df.erg_tot.isna()) / len(df.erg_tot)
-    
+        missing_incl_tz = sum(df.erg_tot.isna()) / len(df.erg_tot)
+
         df['hour'] = df.DateTime.dt.hour
         max_per_hour = df.set_index('DateTime').pivot_table(index=pd.Grouper(freq='d'), columns='hour', aggfunc=len).max().max()
     
@@ -131,6 +130,12 @@ class CREMProfileReader(ProfileReader):
             df = None
         else:
             df.drop('hour', axis=1, inplace=True)
+
+            df = df.set_index('DateTime')['erg_tot_filled'].groupby(pd.Grouper(level=0, freq='h')).sum().reset_index()
+
+            df['nd_id'] = hashlib.md5(str((obj, place)).encode('utf-8')).hexdigest()[:10].upper()
+            df['missing_incl_tz'] = missing_incl_tz
+       
         
         return df
 
